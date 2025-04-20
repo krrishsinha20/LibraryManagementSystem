@@ -8,5 +8,4 @@
 To create a Java-based interactive library system that allows:
 - Book issuing and returning
 - Admin and user access
-- Use of OOPs concepts, Exceptions, Database, and Multithreading
-- An interactive ui for user
+- Use of OOPs concepts, Exceptions, Database
