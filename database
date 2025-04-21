@@ -1,0 +1,56 @@
+import java.sql.*;
+import java.util.Scanner;
+import java.util.InputMismatchException;
+import org.postgresql.util.PSQLException;
+
+class DatabaseConnector {
+private static final String URL = "jdbc:postgresql://localhost:5432/Library Management System";
+private static final String USER = "postgres";
+private static final String PASS = "merapsql";
+public static Connection getConnection() throws SQLException {
+
+try {
+
+return DriverManager.getConnection(URL, USER, PASS);
+        
+} 
+catch (SQLException e) {
+
+System.err.println("Failed to connect to database: " + e.getMessage());
+
+throw e;
+
+}
+
+}
+
+}
+
+
+class BookNotAvailableException extends Exception {
+    
+public BookNotAvailableException(String message) {
+        
+super(message);
+
+}
+
+}
+
+class UserNotFoundException extends Exception {
+
+public UserNotFoundException(String message) {
+
+super(message);
+
+}
+
+}
+
+class BookNotFoundException extends Exception {
+
+public BookNotFoundException(String message) {
+
+super(message);
+    
+}
