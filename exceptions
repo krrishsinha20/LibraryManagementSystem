@@ -1,0 +1,147 @@
+public void issueBook(int userId, int bookId) throws SQLException, BookNotAvailableException, UserNotFoundException, BookNotFoundException {
+        try {
+            conn.setAutoCommit(false);
+
+            
+            try (PreparedStatement userCheck = conn.prepareStatement(
+                    "SELECT 1 FROM Users WHERE user_id = ? FOR SHARE")) {
+                userCheck.setInt(1, userId);
+                ResultSet rs = userCheck.executeQuery();
+                if (!rs.next()) {
+                    throw new UserNotFoundException("User with ID " + userId + " not found");
+                }
+            }
+
+            
+            try (PreparedStatement bookCheck = conn.prepareStatement(
+                    "SELECT is_available FROM Books WHERE book_id = ? FOR UPDATE")) {
+                bookCheck.setInt(1, bookId);
+                ResultSet rs = bookCheck.executeQuery();
+                
+                if (!rs.next()) {
+                    throw new BookNotFoundException("Book with ID " + bookId + " not found");
+                }
+                if (!rs.getBoolean("is_available")) {
+                    throw new BookNotAvailableException("Book is not available for issue!");
+                }
+            }
+
+            
+            try (PreparedStatement issueStmt = conn.prepareStatement(
+                    "INSERT INTO IssuedBooks (user_id, book_id) VALUES (?, ?)")) {
+                issueStmt.setInt(1, userId);
+                issueStmt.setInt(2, bookId);
+                issueStmt.executeUpdate();
+            }
+
+           
+            try (PreparedStatement updateStmt = conn.prepareStatement(
+                    "UPDATE Books SET is_available = false WHERE book_id = ?")) {
+                updateStmt.setInt(1, bookId);
+                updateStmt.executeUpdate();
+            }
+
+            conn.commit();
+            System.out.println("Book issued successfully!");
+
+        } catch (PSQLException e) {
+            handlePSQLException(e, userId, bookId);
+            conn.rollback();
+        } catch (SQLException e) {
+            conn.rollback();
+            throw e;
+        } finally {
+            conn.setAutoCommit(true);
+        }
+    }
+
+    private void handlePSQLException(PSQLException e, int userId, int bookId) 
+        throws UserNotFoundException, BookNotFoundException {
+        if (e.getMessage().contains("user_id_fkey")) {
+            throw new UserNotFoundException("User with ID " + userId + " not found");
+        } else if (e.getMessage().contains("book_id_fkey")) {
+            throw new BookNotFoundException("Book with ID " + bookId + " not found");
+        }
+    }
+
+    public void returnBook(int bookId) throws SQLException, BookNotFoundException {
+        try {
+            conn.setAutoCommit(false);
+
+        
+            try (PreparedStatement bookCheck = conn.prepareStatement(
+                    "SELECT 1 FROM Books WHERE book_id = ? FOR UPDATE")) {
+                bookCheck.setInt(1, bookId);
+                ResultSet rs = bookCheck.executeQuery();
+                if (!rs.next()) {
+                    throw new BookNotFoundException("Book with ID " + bookId + " not found");
+                }
+            }
+
+           
+            try (PreparedStatement updateStmt = conn.prepareStatement(
+                    "UPDATE Books SET is_available = true WHERE book_id = ?")) {
+                updateStmt.setInt(1, bookId);
+                int affected = updateStmt.executeUpdate();
+                if (affected == 0) {
+                    throw new BookNotFoundException("Book with ID " + bookId + " not found");
+                }
+            }
+
+            
+            try (PreparedStatement returnStmt = conn.prepareStatement(
+                    "UPDATE IssuedBooks SET return_date = NOW() WHERE book_id = ? AND return_date IS NULL")) {
+                returnStmt.setInt(1, bookId);
+                returnStmt.executeUpdate();
+            }
+
+            conn.commit();
+            System.out.println("Book returned successfully!");
+
+        } catch (PSQLException e) {
+            conn.rollback();
+            throw new SQLException("Database error: " + e.getMessage());
+        } finally {
+            conn.setAutoCommit(true);
+        }
+    }
+    
+    
+    private static int getValidInt(Scanner sc) {
+        while (true) {
+            try {
+                return sc.nextInt();
+            } catch (InputMismatchException e) {
+                System.out.print("Invalid input. Enter a number: ");
+                sc.nextLine();  
+            }
+        }
+    }
+
+    private static void handleRegisterUser(Scanner sc, Library lib) throws SQLException {
+        System.out.print("Enter user name: ");
+        String name = sc.nextLine().trim();
+        if (name.isEmpty()) {
+            System.out.println("Name cannot be empty!");
+            return;
+        }
+        lib.registerUser(new Student(name));
+    }
+
+    private static void handleAddBook(Scanner sc, Library lib) throws SQLException {
+        System.out.print("Enter book title: ");
+        String title = sc.nextLine().trim();
+        if (title.isEmpty()) {
+            System.out.println("Title cannot be empty!");
+            return;
+        }
+        
+        System.out.print("Enter author: ");
+        String author = sc.nextLine().trim();
+        if (author.isEmpty()) {
+            System.out.println("Author cannot be empty!");
+            return;
+        }
+        
+        lib.addBook(new Book(title, author));
+    }
